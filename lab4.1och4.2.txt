@@ -1,0 +1,115 @@
+// Labb4OneProcess.cpp : Defines the entry point for the console application.
+//
+
+#include "stdafx.h"
+#include <Windows.h>
+#include <iostream>
+#include <conio.h>
+#include <thread>
+#include <string>
+
+
+using namespace std;
+
+#define PAGESIZE (1024*4)
+
+auto hEvent = CreateEvent(NULL, TRUE, FALSE, "WriteEvent");
+
+void SecondThread(char*);
+
+int main()
+{
+	auto hFilmappning = CreateFileMapping (INVALID_HANDLE_VALUE,NULL, PAGE_READWRITE, 0, PAGESIZE, TEXT("MinFilmapp"));
+
+    auto startadress = (char *)MapViewOfFile(hFilmappning, FILE_MAP_WRITE, 0, 0, 0);
+    //Enters text that ends with‘/0’
+
+    wsprintf (startadress, "");
+
+    std::thread cleaner(SecondThread, startadress);
+
+    //Wait for the receiver to start
+    std::string input;
+    int start = 0;
+    while (true)
+    {
+        auto buffertSize = strlen(startadress);
+        std::getline(std::cin, input);
+        auto size = input.size();
+
+
+        int i = buffertSize;
+        for (i;  i< buffertSize + size; i++)
+        {
+            startadress[i] = input[start];
+            start++;
+        }
+        startadress[i] = '\n';
+
+        input.clear();
+        start = 0;
+
+        PulseEvent(hEvent);
+    }
+    
+    //End          
+    UnmapViewOfFile (startadress); //(* Else a file handle)
+    CloseHandle(hFilmappning);
+    cleaner.join();
+
+    std::cin.ignore();
+    return 0;
+}
+
+
+void SecondThread(char *startadress)
+{
+    while (true)
+    {
+        WaitForSingleObject(hEvent, INFINITE);
+        system("CLS");
+        cout << startadress;
+    }
+}
+
+
+
+/////////
+
+LAB 4.2
+// labb4.cpp : Defines the entry point for the console application.
+//
+
+#include "stdafx.h"
+#include <Windows.h>
+#include <iostream>
+using namespace std;
+
+#define PAGESIZE 4096
+
+int main(int argc, char *argv[])
+{
+	auto startPage = atoi(argv[1]) * PAGESIZE;
+	auto endPage = atoi(argv[2]) * PAGESIZE;
+	//SCHOOL CODE!!!!
+	auto hFil = CreateFile(TEXT("C:\\Users\\jabos\\Downloads\\stor\\stor.txt"), GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
+
+	auto hFilmappning = CreateFileMapping(hFil, NULL, PAGE_READONLY, 0, 0, NULL);
+
+	// Start with read permission
+	auto startadress = (char *)MapViewOfFile(hFilmappning, FILE_MAP_READ, 0, 0, 0);
+	
+	for (int i = startPage; i < endPage; i++ )
+	{
+		std::cout << startadress[i];
+
+	}
+	cin.ignore();
+	//End
+	UnmapViewOfFile(startadress);
+	CloseHandle(hFilmappning);
+	CloseHandle(hFil);
+	//SCHOOL CODE END!!!
+
+    return 0;
+}
